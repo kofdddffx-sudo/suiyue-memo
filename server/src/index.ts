@@ -323,6 +323,34 @@ app.get('/api/v1/download-packtool', (req, res) => {
 });
 
 // ============================================================
+// 岁月备忘录 Web 版路由
+// ============================================================
+
+// 静态文件：PWA manifest + Service Worker + 图标
+app.use('/app', express.static('/workspace/projects/server/public', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.setHeader('Service-Worker-Allowed', '/');
+    }
+  }
+}));
+
+// 岁月备忘录 Web 版入口
+app.get('/app', (req, res) => {
+  const htmlPath = '/workspace/projects/server/public/memory-app.html';
+  if (fs.existsSync(htmlPath)) {
+    res.sendFile(htmlPath);
+  } else {
+    res.status(404).send('应用文件未找到');
+  }
+});
+
+// 根路径重定向到 Web 版
+app.get('/', (req, res) => {
+  res.redirect('/app');
+});
+
+// ============================================================
 // 启动服务
 // ============================================================
 

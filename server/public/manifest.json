@@ -1,0 +1,14 @@
+{
+  "name": "岁月备忘录",
+  "short_name": "岁月备忘录",
+  "description": "语音提醒助手 - 帮助记忆日常琐事",
+  "start_url": "/api/v1/app",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/api/v1/app/icon", "sizes": "192x192", "type": "image/png" },
+    { "src": "/api/v1/app/icon", "sizes": "512x512", "type": "image/png" }
+  ]
+}

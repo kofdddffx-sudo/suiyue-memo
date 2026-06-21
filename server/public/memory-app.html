@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>岁月备忘录 - 语音提醒助手</title>
+<!-- PWA Manifest -->
+<link rel="manifest" href="/api/v1/app/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+/* ========== 适老化全局设计 ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a1a2e; --card:#16213e; --primary:#FFD700; --text:#FFFFFF;
+  --text2:#B0B0B0; --danger:#FF4444; --success:#4CAF50; --warning:#FF9800;
+  --radius:20px; --shadow:0 8px 32px rgba(0,0,0,0.3);
+  --font-lg:28px; --font-xl:36px; --font-xxl:48px; --font-sm:20px; --font-xs:16px;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--text);user-select:none;
+  -webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+}
+/* ========== 页面布局 ========== */
+.app{height:100vh;display:flex;flex-direction:column;max-width:600px;margin:0 auto;padding:16px}
+.header{text-align:center;padding:12px 0 8px;flex-shrink:0}
+.header h1{font-size:var(--font-xl);font-weight:700;color:var(--primary);letter-spacing:2px}
+.header .date{font-size:var(--font-sm);color:var(--text2);margin-top:4px}
+/* ========== 语音按钮 ========== */
+.voice-area{flex-shrink:0;padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.voice-btn{
+  width:160px;height:160px;border-radius:50%;border:4px solid var(--primary);
+  background:linear-gradient(145deg,#2a2a4e,#1a1a2e);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:all 0.3s;position:relative;box-shadow:0 0 40px rgba(255,215,0,0.2);
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation
+}
+.voice-btn:active{transform:scale(0.95);background:var(--primary)}
+.voice-btn.recording{animation:pulse 1.2s ease-in-out infinite;border-color:var(--danger);box-shadow:0 0 60px rgba(255,68,68,0.4)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.voice-btn .icon{font-size:56px;line-height:1}
+.voice-btn .label{font-size:var(--font-sm);margin-top:4px;color:var(--text)}
+.voice-btn.recording .label{color:var(--danger)}
+.voice-status{font-size:var(--font-sm);color:var(--text2);min-height:28px;text-align:center}
+/* ========== 任务列表 ========== */
+.task-area{flex:1;overflow-y:auto;min-height:0;padding:8px 0 16px}
+.task-area::-webkit-scrollbar{width:4px}
+.task-area::-webkit-scrollbar-thumb{background:var(--primary);border-radius:2px}
+.section-title{font-size:var(--font-lg);font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title .count{font-size:var(--font-sm);color:var(--text2);font-weight:400}
+.task-card{
+  background:var(--card);border-radius:var(--radius);padding:16px 20px;
+  margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;
+  min-height:72px;cursor:pointer;transition:all 0.2s;border-left:4px solid var(--primary)
+}
+.task-card.completed{opacity:0.5;border-left-color:var(--success)}
+.task-card .check{width:32px;height:32px;border-radius:50%;border:3px solid var(--text2);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:transparent}
+.task-card.completed .check{border-color:var(--success);background:var(--success);color:#fff}
+.task-card .info{flex:1;min-width:0}
+.task-card .title{font-size:var(--font-lg);font-weight:600;line-height:1.3}
+.task-card .meta{font-size:var(--font-sm);color:var(--text2);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.task-card .meta .tag{background:rgba(255,215,0,0.15);color:var(--primary);padding:2px 10px;border-radius:8px;font-size:14px}
+.task-card .delete-btn{width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,68,68,0.15);
+  color:var(--danger);font-size:22px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+/* ========== 空状态 ========== */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-state .icon{font-size:72px;margin-bottom:12px;opacity:0.5}
+.empty-state p{font-size:var(--font-lg)}
+/* ========== 底部导航 ========== */
+.bottom-nav{flex-shrink:0;display:flex;gap:12px;padding:8px 0 4px}
+.bottom-nav button{
+  flex:1;padding:14px;border:none;border-radius:var(--radius);font-size:var(--font-sm);
+  font-weight:600;cursor:pointer;touch-action:manipulation;transition:all 0.2s
+}
+.btn-primary{background:var(--primary);color:#1a1a2e}
+.btn-primary:active{transform:scale(0.97)}
+.btn-secondary{background:var(--card);color:var(--text);border:2px solid rgba(255,255,255,0.1)}
+/* ========== 确认弹窗 ========== */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.7);z-index:100;justify-content:center;align-items:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--card);border-radius:var(--radius);padding:32px 24px;max-width:400px;width:100%;text-align:center}
+.modal-box h2{font-size:var(--font-xl);margin-bottom:16px}
+.modal-box p{font-size:var(--font-lg);color:var(--text2);margin-bottom:24px}
+.modal-box .actions{display:flex;gap:12px}
+.modal-box .actions button{flex:1;padding:16px;border:none;border-radius:var(--radius);
+  font-size:var(--font-lg);font-weight:600;cursor:pointer;touch-action:manipulation}
+.modal-box .actions .btn-cancel{background:rgba(255,255,255,0.1);color:var(--text)}
+.modal-box .actions .btn-confirm{background:var(--primary);color:#1a1a2e}
+/* ========== Toast提示 ========== */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--card);
+  color:var(--text);padding:16px 28px;border-radius:var(--radius);font-size:var(--font-lg);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:200;transition:all 0.3s;opacity:0;pointer-events:none;
+  max-width:90%;text-align:center;border:2px solid rgba(255,215,0,0.3)}
+.toast.show{opacity:1;bottom:50px}
+.toast.success{border-color:var(--success)}
+.toast.error{border-color:var(--danger)}
+/* ========== 响应式 ========== */
+@media(min-width:600px){.app{padding:24px}}
+@media(max-height:500px){
+  .voice-btn{width:100px;height:100px}
+  .voice-btn .icon{font-size:36px}
+  .voice-btn .label{font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- 顶部标题 -->
+  <header class="header">
+    <h1>🗒️ 岁月备忘录</h1>
+    <div class="date" id="dateDisplay"></div>
+  </header>
+
+  <!-- 语音输入区 -->
+  <div class="voice-area">
+    <button class="voice-btn" id="voiceBtn" ontouchstart="">
+      <span class="icon">🎤</span>
+      <span class="label" id="voiceLabel">按住说话</span>
+    </button>
+    <div class="voice-status" id="voiceStatus">点击麦克风，说出你的待办事项</div>
+  </div>
+
+  <!-- 任务列表 -->
+  <div class="task-area" id="taskArea">
+    <div class="section-title">
+      📋 今日提醒 <span class="count" id="taskCount"></span>
+    </div>
+    <div id="taskList"></div>
+  </div>
+
+  <!-- 底部按钮 -->
+  <div class="bottom-nav">
+    <button class="btn-secondary" onclick="clearCompletedTasks()">🗑️ 清理已完成</button>
+    <button class="btn-primary" onclick="checkNotificationsNow()">🔔 测试提醒</button>
+  </div>
+</div>
+
+<!-- ========== 确认弹窗 ========== -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h2 id="modalTitle">确认</h2>
+    <p id="modalMessage">确定要执行此操作吗？</p>
+    <div class="actions">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" id="modalConfirmBtn">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Toast ========== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 岁月备忘录 - 完整前端逻辑
+// ============================================================
+
+// ---------- 配置 ----------
+const CONFIG = {
+  API_BASE: window.location.origin + '/api/v1',
+  STORAGE_KEY: 'suiyue_tasks',
+  NOTIFICATION_INTERVAL: 30000  // 30秒检查一次提醒
+};
+
+// ---------- 状态 ----------
+let tasks = [];
+let recognition = null;
+let isRecording = false;
+let notificationTimer = null;
+let modalCallback = null;
+
+// ---------- DOM 引用 ----------
+const $ = id => document.getElementById(id);
+const voiceBtn = $('voiceBtn');
+const voiceLabel = $('voiceLabel');
+const voiceStatus = $('voiceStatus');
+const taskList = $('taskList');
+const taskCount = $('taskCount');
+const dateDisplay = $('dateDisplay');
+const toast = $('toast');
+
+// ============================================================
+// 1. 日期显示
+// ============================================================
+function updateDate() {
+  const now = new Date();
+  const opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+  dateDisplay.textContent = now.toLocaleDateString('zh-CN', opts);
+}
+updateDate();
+
+// ============================================================
+// 2. 本地存储
+// ============================================================
+function loadTasks() {
+  try {
+    const data = localStorage.getItem(CONFIG.STORAGE_KEY);
+    tasks = data ? JSON.parse(data) : [];
+  } catch(e) { tasks = []; }
+}
+
+function saveTasks() {
+  try {
+    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(tasks));
+  } catch(e) { /* 存储满时静默失败 */ }
+}
+
+// ============================================================
+// 3. 任务渲染
+// ============================================================
+function renderTasks() {
+  loadTasks();
+  const today = new Date().toDateString();
+  const todayTasks = tasks.filter(t => {
+    if (t.completed) return false;
+    if (t.cancelled) return false;
+    // 显示今天到期的任务
+    if (!t.createdAt) return true;
+    const created = new Date(t.createdAt).toDateString();
+    return created === today;
+  });
+
+  if (todayTasks.length === 0) {
+    taskList.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">☀️</div>
+        <p>今天还没有待办事项</p>
+        <p style="font-size:16px;margin-top:8px;color:var(--text2)">点击麦克风，记录你的第一件事</p>
+      </div>`;
+    taskCount.textContent = '';
+    return;
+  }
+
+  taskCount.textContent = `(${todayTasks.length}项)`;
+  taskList.innerHTML = todayTasks.map(task => `
+    <div class="task-card${task.completed?' completed':''}" data-id="${task.id}" onclick="toggleTask('${task.id}')">
+      <div class="check">${task.completed ? '✓' : ''}</div>
+      <div class="info">
+        <div class="title">${escapeHtml(task.task)}</div>
+        <div class="meta">
+          ${task.time ? '<span>⏰ ' + task.time + '</span>' : ''}
+          ${task.repeat && task.repeat !== 'none' ? '<span class="tag">' + repeatLabel(task.repeat) + '</span>' : ''}
+        </div>
+      </div>
+      <button class="delete-btn" onclick="event.stopPropagation();confirmDelete('${task.id}')" title="删除">×</button>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function repeatLabel(repeat) {
+  const map = { daily: '每天', weekly: '每周', weekday: '工作日', weekend: '周末' };
+  return map[repeat] || repeat;
+}
+
+// ============================================================
+// 4. 语音输入 (Web Speech API)
+// ============================================================
+function initSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    voiceStatus.textContent = '⚠️ 当前浏览器不支持语音识别，请使用 Chrome';
+    voiceBtn.style.opacity = '0.5';
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onresult = function(event) {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        handleVoiceResult(transcript);
+        stopRecording();
+        return;
+      }
+    }
+    voiceStatus.textContent = '📝 ' + transcript;
+  };
+
+  recognition.onerror = function(event) {
+    console.error('Speech error:', event.error);
+    stopRecording();
+    if (event.error === 'no-speech') {
+      voiceStatus.textContent = '未检测到语音，请再试一次';
+    } else {
+      voiceStatus.textContent = '语音识别出错: ' + event.error;
+    }
+  };
+
+  recognition.onend = function() {
+    stopRecording();
+  };
+}
+
+function startRecording() {
+  if (isRecording) return;
+  if (!recognition) { initSpeech(); if (!recognition) return; }
+
+  try {
+    // 请求麦克风权限
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function(stream) {
+        stream.getTracks().forEach(t => t.stop()); // 关掉流，recognition会用
+        isRecording = true;
+        voiceBtn.classList.add('recording');
+        voiceLabel.textContent = '松开完成';
+        voiceStatus.textContent = '🎤 正在聆听...';
+        recognition.start();
+      })
+      .catch(function(err) {
+        voiceStatus.textContent = '⚠️ 需要麦克风权限才能使用语音功能';
+        console.error('Mic error:', err);
+      });
+  } catch(e) {
+    voiceStatus.textContent = '⚠️ 语音功能暂不可用';
+  }
+}
+
+function stopRecording() {
+  if (!isRecording) return;
+  isRecording = false;
+  voiceBtn.classList.remove('recording');
+  voiceLabel.textContent = '按住说话';
+  try { recognition.stop(); } catch(e) {}
+}
+
+// 语音按钮事件
+voiceBtn.addEventListener('mousedown', startRecording);
+voiceBtn.addEventListener('mouseup', stopRecording);
+voiceBtn.addEventListener('mouseleave', stopRecording);
+voiceBtn.addEventListener('touchstart', function(e) { e.preventDefault(); startRecording(); });
+voiceBtn.addEventListener('touchend', function(e) { e.preventDefault(); stopRecording(); });
+
+// ============================================================
+// 5. AI 任务解析
+// ============================================================
+async function handleVoiceResult(text) {
+  if (!text || text.trim().length === 0) {
+    voiceStatus.textContent = '未识别到有效内容，请再试一次';
+    voiceBtn.classList.remove('recording');
+    return;
+  }
+
+  voiceStatus.textContent = '🤖 正在分析: "' + text + '"...';
+
+  try {
+    const response = await fetch(CONFIG.API_BASE + '/parse-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.trim() })
+    });
+
+    const result = await response.json();
+    console.log('AI解析结果:', result);
+
+    // 创建任务
+    const task = {
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+      task: result.task || text.trim(),
+      time: result.time || '',
+      repeat: result.repeat || 'none',
+      confidence: result.confidence || 0.5,
+      completed: false,
+      cancelled: false,
+      createdAt: new Date().toISOString(),
+      source: 'voice'
+    };
+
+    tasks.push(task);
+    saveTasks();
+    renderTasks();
+
+    // TTS 语音播报确认
+    const confirmMsg = task.time
+      ? '已为您设置' + (task.time ? task.time + ' ' : '') + task.task + '的提醒'
+      : '已记录: ' + task.task;
+    speak(confirmMsg);
+
+    // 显示 Toast
+    showToast('✅ ' + confirmMsg, 'success');
+
+    // 如果包含时间，设置通知
+    if (task.time) {
+      scheduleTaskNotification(task);
+    }
+
+    voiceStatus.textContent = '✅ 已记录: ' + task.task;
+
+  } catch (error) {
+    console.error('AI解析失败:', error);
+    // 降级：直接创建任务
+    const task = {
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+      task: text.trim(),
+      time: '',
+      repeat: 'none',
+      confidence: 0.3,
+      completed: false,
+      cancelled: false,
+      createdAt: new Date().toISOString(),
+      source: 'voice'
+    };
+    tasks.push(task);
+    saveTasks();
+    renderTasks();
+    speak('已记录: ' + task.task);
+    showToast('📝 已记录: ' + task.task, '');
+    voiceStatus.textContent = '📝 已记录: ' + task.task;
+  }
+}
+
+// ============================================================
+// 6. TTS 语音播报
+// ============================================================
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  // 取消当前语音
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'zh-CN';
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+  window.speechSynthesis.speak(utterance);
+}
+
+// ============================================================
+// 7. 任务操作
+// ============================================================
+function toggleTask(id) {
+  loadTasks();
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+
+  task.completed = !task.completed;
+
+  // 如果是重复任务且刚完成，计算下一次
+  if (task.completed && task.repeat && task.repeat !== 'none') {
+    // 对于每日重复，维持原样
+    speak(task.task + ' 已完成');
+  } else if (task.completed) {
+    speak(task.task + ' 已完成');
+  }
+
+  saveTasks();
+  renderTasks();
+
+  if (task.completed) {
+    showToast('✅ ' + task.task + ' 已完成', 'success');
+  }
+}
+
+function confirmDelete(id) {
+  $('modalTitle').textContent = '确认删除';
+  $('modalMessage').textContent = '确定要删除这条提醒吗？';
+  $('modalConfirmBtn').onclick = function() {
+    deleteTask(id);
+    closeModal();
+  };
+  $('confirmModal').classList.add('show');
+}
+
+function deleteTask(id) {
+  loadTasks();
+  const task = tasks.find(t => t.id === id);
+  if (task) {
+    task.cancelled = true;
+    saveTasks();
+    renderTasks();
+    showToast('已删除提醒', '');
+  }
+}
+
+function clearCompletedTasks() {
+  loadTasks();
+  const completed = tasks.filter(t => t.completed);
+  if (completed.length === 0) {
+    showToast('没有已完成的任务', '');
+    return;
+  }
+  $('modalTitle').textContent = '清理已完成';
+  $('modalMessage').textContent = '确定要清除 ' + completed.length + ' 条已完成记录吗？';
+  $('modalConfirmBtn').onclick = function() {
+    tasks = tasks.filter(t => !t.completed);
+    saveTasks();
+    renderTasks();
+    closeModal();
+    showToast('已清理 ' + completed.length + ' 条记录', '');
+  };
+  $('confirmModal').classList.add('show');
+}
+
+function closeModal() {
+  $('confirmModal').classList.remove('show');
+}
+
+// 点击弹窗外部关闭
+$('confirmModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ============================================================
+// 8. Web 通知
+// ============================================================
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') return;
+  if (Notification.permission === 'denied') {
+    showToast('⚠️ 通知已被拒绝，请在浏览器设置中开启', 'error');
+    return;
+  }
+  Notification.requestPermission();
+}
+
+function sendNotification(title, body) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  try {
+    const notification = new Notification(title, {
+      body: body,
+      icon: '/api/v1/app/icon',  // 会返回默认图标
+      tag: 'suiyue-reminder',
+      requireInteraction: true,   // 不自动消失
+      vibrate: [200, 100, 200],
+      badge: '/api/v1/app/icon'
+    });
+
+    notification.onshow = function() {
+      // 同时语音播报
+      speak(title + ' ' + body);
+    };
+
+    notification.onclick = function() {
+      window.focus();
+      this.close();
+    };
+  } catch(e) {
+    console.error('通知发送失败:', e);
+  }
+}
+
+function scheduleTaskNotification(task) {
+  if (!task.time) return;
+  const now = new Date();
+  const [hours, minutes] = task.time.split(':').map(Number);
+  const target = new Date();
+  target.setHours(hours, minutes, 0, 0);
+
+  // 如果时间已过，设为明天
+  if (target <= now) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  const delay = target.getTime() - now.getTime();
+  console.log('通知将在', Math.round(delay/1000), '秒后触发:', task.task);
+
+  // 用 setTimeout 模拟（实际应该用 Service Worker）
+  setTimeout(function() {
+    sendNotification('⏰ 岁月备忘录提醒', task.task);
+    // 如果是重复任务，重新调度
+    if (task.repeat === 'daily' || task.repeat === 'weekday') {
+      scheduleTaskNotification(task);
+    }
+  }, delay);
+}
+
+// 检查当前到期的任务
+function checkNotificationsNow() {
+  requestNotificationPermission();
+  loadTasks();
+  const now = new Date();
+  const currentTime = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+  const dueTasks = tasks.filter(t => {
+    if (t.completed || t.cancelled) return false;
+    if (!t.time) return false;
+    return t.time === currentTime;
+  });
+
+  if (dueTasks.length === 0) {
+    showToast('当前没有到期的提醒', '');
+    speak('当前没有到期的提醒');
+  } else {
+    dueTasks.forEach(t => {
+      sendNotification('⏰ 岁月备忘录提醒', t.task);
+    });
+    showToast('已发送 ' + dueTasks.length + ' 条提醒', 'success');
+    speak('已发送 ' + dueTasks.length + ' 条提醒');
+  }
+}
+
+// 定期检查通知（每30秒）
+function startNotificationChecker() {
+  // 先请求权限
+  if ('Notification' in window && Notification.permission === 'default') {
+    // 延迟请求，不打扰用户
+    setTimeout(requestNotificationPermission, 10000);
+  }
+
+  notificationTimer = setInterval(() => {
+    loadTasks();
+    const now = new Date();
+    const currentTime = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+    tasks.forEach(t => {
+      if (t.completed || t.cancelled || !t.time) return;
+      if (t.time === currentTime) {
+        // 检查是否已经通知过（用标记避免重复）
+        const notifiedKey = 'notified_' + t.id + '_' + now.toDateString() + '_' + currentTime;
+        if (!localStorage.getItem(notifiedKey)) {
+          sendNotification('⏰ 岁月备忘录提醒', t.task);
+          localStorage.setItem(notifiedKey, '1');
+          // 1小时后清理标记
+          setTimeout(() => localStorage.removeItem(notifiedKey), 3600000);
+        }
+      }
+    });
+  }, CONFIG.NOTIFICATION_INTERVAL);
+}
+
+// ============================================================
+// 9. Toast 提示
+// ============================================================
+let toastTimer = null;
+function showToast(message, type) {
+  toast.textContent = message;
+  toast.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 4000);
+}
+
+// ============================================================
+// 10. 初始化
+// ============================================================
+function init() {
+  // 加载任务
+  loadTasks();
+  renderTasks();
+
+  // 初始化语音
+  initSpeech();
+
+  // 请求通知权限
+  requestNotificationPermission();
+
+  // 启动定时检查
+  startNotificationChecker();
+
+  // 更新时间
+  setInterval(updateDate, 60000);
+
+  // 注册 Service Worker（PWA离线支持）
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/api/v1/app/sw.js').catch(function(err) {
+      console.log('ServiceWorker注册失败:', err);
+    });
+  }
+
+  console.log('岁月备忘录 v1.0 已启动');
+  console.log('任务数:', tasks.length);
+}
+
+// 页面加载完成后初始化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
