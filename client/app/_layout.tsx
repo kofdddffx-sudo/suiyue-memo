@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Provider } from '@/components/Provider';
+import { TaskProvider } from '@/stores/TaskContext';
 
 import '../global.css';
 
@@ -14,17 +15,20 @@ LogBox.ignoreLogs([
 export default function RootLayout() {
   return (
     <Provider>
-      <Stack
-        screenOptions={{
-          animation: 'slide_from_right',
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          headerShown: false
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: "" }} />
-      </Stack>
-      <Toast />
+      <TaskProvider>
+        <Stack
+          screenOptions={{
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+            headerShown: false
+          }}
+        >
+          <Stack.Screen name="index" options={{ title: "首页" }} />
+          <Stack.Screen name="settings" options={{ title: "设置" }} />
+        </Stack>
+        <Toast />
+      </TaskProvider>
     </Provider>
   );
 }
