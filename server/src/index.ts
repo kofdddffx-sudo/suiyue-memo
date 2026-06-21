@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 import { LLMClient, Config } from "coze-coding-dev-sdk";
 
 const app = express();
@@ -224,7 +226,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // ============================================================
 // 下载项目代码
 // ============================================================
-import path from "path";
 
 // 下载页面（HTML 方式方便直接点击下载）
 app.get('/api/v1/download-page', (req, res) => {
@@ -272,6 +273,8 @@ app.get('/api/v1/download-page', (req, res) => {
     <p class="sub">适老化智能提醒APP · 完整项目代码</p>
     <p class="size">📦 压缩包大小: 约 550KB（不含 node_modules）</p>
     <a class="btn" href="/api/v1/download">⬇ 点击下载项目代码</a>
+    <br><br>
+    <a class="btn" href="/api/v1/download-packtool" style="background: linear-gradient(135deg, #e94560, #c23152); font-size: 16px; padding: 14px 36px;">🔧 下载通用打包工具 pack-tool</a>
     <div class="info">
       <h3>⚠ 下载后使用步骤</h3>
       <p>
@@ -289,15 +292,34 @@ app.get('/api/v1/download-page', (req, res) => {
   res.send(html);
 });
 
-// 文件下载接口
+// 文件下载接口 - 项目代码
 app.get('/api/v1/download', (req, res) => {
   const zipPath = '/tmp/suiyue-app.tar.gz';
-  res.download(zipPath, 'suiyue-app.tar.gz', (err) => {
-    if (err) {
-      console.error('[Download] 下载失败:', err.message);
-      res.status(500).json({ error: '文件下载失败' });
-    }
-  });
+  if (fs.existsSync(zipPath)) {
+    res.download(zipPath, 'suiyue-app.tar.gz', (err) => {
+      if (err) {
+        console.error('[Download] 下载失败:', err.message);
+        res.status(500).json({ error: '文件下载失败' });
+      }
+    });
+  } else {
+    res.status(404).json({ error: '文件未找到，请先打包' });
+  }
+});
+
+// 文件下载接口 - pack-tool 打包工具
+app.get('/api/v1/download-packtool', (req, res) => {
+  const zipPath = '/workspace/projects/client/public/pack-tool-bundle.tar.gz';
+  if (fs.existsSync(zipPath)) {
+    res.download(zipPath, 'pack-tool-bundle.tar.gz', (err) => {
+      if (err) {
+        console.error('[Download] pack-tool 下载失败:', err.message);
+        res.status(500).json({ error: '文件下载失败' });
+      }
+    });
+  } else {
+    res.status(404).json({ error: '文件未找到' });
+  }
 });
 
 // ============================================================
