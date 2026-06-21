@@ -222,6 +222,85 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // ============================================================
+// 下载项目代码
+// ============================================================
+import path from "path";
+
+// 下载页面（HTML 方式方便直接点击下载）
+app.get('/api/v1/download-page', (req, res) => {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>岁月备忘录 - 下载项目代码</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #1a1a2e; color: #fff;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #16213e; border-radius: 24px; padding: 48px;
+      max-width: 560px; width: 90%; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    .sub { color: #aaa; font-size: 16px; margin-bottom: 32px; }
+    .size { color: #4fc3f7; font-size: 14px; margin-bottom: 8px; }
+    .btn {
+      display: inline-block; padding: 18px 56px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff; text-decoration: none; border-radius: 16px;
+      font-size: 20px; font-weight: bold;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 24px rgba(102,126,234,0.4);
+      margin-bottom: 24px;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(102,126,234,0.6); }
+    .info { text-align: left; background: #0f3460; border-radius: 12px; padding: 20px; margin-top: 24px; }
+    .info h3 { font-size: 16px; margin-bottom: 12px; color: #e94560; }
+    .info p { font-size: 14px; color: #ccc; line-height: 1.8; }
+    .info code { background: #1a1a2e; padding: 2px 8px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>📱 岁月备忘录</h1>
+    <p class="sub">适老化智能提醒APP · 完整项目代码</p>
+    <p class="size">📦 压缩包大小: 约 550KB（不含 node_modules）</p>
+    <a class="btn" href="/api/v1/download">⬇ 点击下载项目代码</a>
+    <div class="info">
+      <h3>⚠ 下载后使用步骤</h3>
+      <p>
+        1. 解压到电脑文件夹<br>
+        2. 打开终端，进入 <code>client/</code> 目录<br>
+        3. 执行 <code>npm install</code> 安装依赖<br>
+        4. 执行 <code>npx eas build --platform android --profile preview</code> 打包 APK<br><br>
+        <strong>详细教程见代码包中的 README.md</strong>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
+});
+
+// 文件下载接口
+app.get('/api/v1/download', (req, res) => {
+  const zipPath = '/tmp/suiyue-app.tar.gz';
+  res.download(zipPath, 'suiyue-app.tar.gz', (err) => {
+    if (err) {
+      console.error('[Download] 下载失败:', err.message);
+      res.status(500).json({ error: '文件下载失败' });
+    }
+  });
+});
+
+// ============================================================
 // 启动服务
 // ============================================================
 
