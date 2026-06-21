@@ -13,17 +13,42 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio", "remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1E3A5F"
       },
-      "package": `com.anonymous.x${projectId || '0'}`
+      "package": `com.suiyuebeiwanglu.${projectId || 'app'}`,
+      "permissions": [
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_DATA_SYNC"
+      ],
+      "intentFilters": [
+        {
+          "action": "android.intent.action.MAIN",
+          "autoVerify": true
+        }
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -56,7 +81,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#2563EB"
+          "color": "#1E3A5F"
         }
       ]
     ],
