@@ -23,11 +23,13 @@ const packager = new Packager(TOOL_DIR);
 const apkManager = new APKManager(TOOL_DIR, config);
 
 async function main() {
-  console.log('');
-  console.log('  ============================================');
-  console.log('      Universal Expo Pack Tool v1.0');
-  console.log('  ============================================');
-  console.log('');
+  if (cmd !== 'menu' && cmd !== 'interactive-build' && cmd !== 'interactive-export' && cmd !== 'interactive-apk') {
+    console.log('');
+    console.log('  ============================================');
+    console.log('      Universal Expo Pack Tool v1.0');
+    console.log('  ============================================');
+    console.log('');
+  }
 
   switch (cmd) {
 

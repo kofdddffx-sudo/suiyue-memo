@@ -1,18 +1,10 @@
 {
   "projects": {
-    "suiyue": {
-      "name": "岁月备忘录",
-      "description": "适老化语音提醒APP，面向阿尔茨海默症老人",
+    "my-app": {
+      "name": "你的应用名称",
+      "description": "应用描述",
       "root": "../client",
-      "packageName": "com.suiyuebeiwanglu.app",
-      "easProfile": "preview",
-      "outputDir": "E:/其他/岁月APP"
-    },
-    "template": {
-      "name": "新项目模板",
-      "description": "在此复制一份改为你的新项目配置",
-      "root": "../client",
-      "packageName": "com.yourcompany.appname",
+      "packageName": "com.yourcompany.yourapp",
       "easProfile": "preview",
       "outputDir": "./output"
     }
@@ -21,8 +13,8 @@
     "androidSdk": "",
     "javaHome": "",
     "autoOpenEmulator": false,
-    "emulatorPath": "C:/leidian/LDPlayer9/ldconsole.exe",
-    "emulatorName": "雷电模拟器",
+    "emulatorPath": "",
+    "emulatorName": "",
     "buildHistoryDir": "./build-history"
   },
   "notify": {
