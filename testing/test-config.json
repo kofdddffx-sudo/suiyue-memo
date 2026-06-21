@@ -1,0 +1,44 @@
+{
+  "projectName": "岁月备忘录",
+  "packageName": "com.suiyuebeiwanglu.memo",
+  "version": "1.0.0",
+
+  "paths": {
+    "apkOutputDir": "E:\\其他\\岁月APP",
+    "apkFileName": "岁月备忘录-v1.0.0.apk",
+    "ldplayer": {
+      "installPath": "C:\\LDPlayer4\\LDPlayer4.exe",
+      "adbPath": "C:\\LDPlayer4\\adb.exe",
+      "emulatorName": "雷电模拟器4"
+    },
+    "serverDir": "../server"
+  },
+
+  "server": {
+    "baseUrl": "http://localhost:9091",
+    "apiPrefix": "/api/v1",
+    "healthEndpoint": "/health"
+  },
+
+  "tests": {
+    "api": true,
+    "apkFileCheck": true,
+    "apkSignature": true,
+    "ldplayerInstall": true,
+    "uiScreenshot": true,
+    "notificationTest": true
+  },
+
+  "expectedResults": {
+    "parseTask": {
+      "shouldContainKeys": ["task", "time", "repeat", "confidence"],
+      "sampleInput": "下午3点给孙子冲奶粉"
+    }
+  },
+
+  "report": {
+    "outputDir": "E:\\其他\\岁月APP\\test-reports",
+    "saveScreenshots": true,
+    "generateHTML": true
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "suiyue-testing",
+  "version": "1.0.0",
+  "description": "岁月备忘录 APP 自动化测试工具",
+  "main": "run-all-tests.js",
+  "scripts": {
+    "test": "node run-all-tests.js",
+    "test:api": "node test-api.js",
+    "test:apk": "node test-apk.js",
+    "test:emulator": "node test-ldplayer.js",
+    "report": "node summary-report.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "chalk": "^4.1.2"
+  }
+}
