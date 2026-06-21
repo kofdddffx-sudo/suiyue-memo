@@ -27,7 +27,7 @@ import {
   getKeepAliveTips,
   registerBackgroundTask,
 } from '@/services/keepAliveService';
-import { requestNotificationPermission } from '@/services/notificationService';
+import { PermissionService } from '@/services/PermissionService';
 
 // ============================================================
 // 设置页面
@@ -43,13 +43,11 @@ export default function SettingsScreen() {
     registerBackgroundTask();
   }, []);
 
-  /** 处理通知权限申请 */
+  /** 处理通知权限申请（统一走 PermissionService） */
   const handleNotificationPermission = async () => {
-    const granted = await requestNotificationPermission();
+    const granted = await PermissionService.request('NOTIFICATIONS');
     if (granted) {
       alert('通知权限已开启，任务提醒将正常推送');
-    } else {
-      alert('通知权限未开启，请前往系统设置手动开启');
     }
   };
 

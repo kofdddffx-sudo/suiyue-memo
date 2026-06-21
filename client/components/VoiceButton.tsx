@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { PermissionService } from '@/services/PermissionService';
 import { speakPleaseSpeak, speakRecordingStopped } from '@/services/speechService';
 
 // ============================================================
@@ -43,11 +44,11 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
   const pulseAnim = useMemo(() => new Animated.Value(1), []);
   const scaleAnim = useMemo(() => new Animated.Value(1), []);
 
-  // ── 1. 进入页面时申请录音权限 ──
+  // ── 1. 进入页面时统一检查录音权限 ──
   useEffect(() => {
     (async () => {
-      const { status } = await Audio.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
+      const granted = await PermissionService.request('MICROPHONE');
+      setHasPermission(granted);
     })();
   }, []);
 
@@ -93,11 +94,11 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
   const startRecording = async () => {
     if (isProcessing) return;
 
-    // 检查权限
+    // 检查权限（统一走 PermissionService）
     if (!hasPermission) {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('需要权限', '请在设置中允许「岁月备忘录」访问麦克风');
+      const granted = await PermissionService.request('MICROPHONE');
+      if (!granted) {
+        PermissionService.showSettingGuide('MICROPHONE');
         return;
       }
       setHasPermission(true);

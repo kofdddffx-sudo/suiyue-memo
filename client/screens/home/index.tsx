@@ -35,7 +35,8 @@ import VoiceButton from '@/components/VoiceButton';
 import TaskCard from '@/components/TaskCard';
 import { useTaskStore, type Task } from '@/stores/TaskContext';
 import { speakTaskConfirmation, speakText } from '@/services/speechService';
-import { showTaskNotification, requestNotificationPermission, initNotifications } from '@/services/notificationService';
+import { initNotifications } from '@/services/notificationService';
+import { PermissionService } from '@/services/PermissionService';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 // ============================================================
@@ -56,12 +57,12 @@ export default function HomeScreen() {
   const [currentTime, setCurrentTime] = useState(dayjs().format('HH:mm'));
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
 
-  // 通知初始化
+  // 通知初始化（统一走 PermissionService）
   const notifInitRef = useRef(false);
   useEffect(() => {
     if (!notifInitRef.current) {
       initNotifications();
-      requestNotificationPermission();
+      PermissionService.request('NOTIFICATIONS');
       notifInitRef.current = true;
     }
   }, []);
