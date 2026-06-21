@@ -1,24 +1,12 @@
 {
+  "outputDir": "./apk-output",
   "projects": {
-    "my-app": {
-      "name": "你的应用名称",
-      "description": "应用描述",
+    "suiyue": {
+      "name": "岁月备忘录",
       "root": "../client",
-      "packageName": "com.yourcompany.yourapp",
-      "easProfile": "preview",
-      "outputDir": "./output"
+      "appName": "岁月备忘录",
+      "platform": "android",
+      "profile": "preview"
     }
-  },
-  "defaults": {
-    "androidSdk": "",
-    "javaHome": "",
-    "autoOpenEmulator": false,
-    "emulatorPath": "",
-    "emulatorName": "",
-    "buildHistoryDir": "./build-history"
-  },
-  "notify": {
-    "enableSound": true,
-    "enableDesktopNotify": false
   }
 }

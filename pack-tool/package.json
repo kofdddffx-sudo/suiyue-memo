@@ -2,18 +2,13 @@
   "name": "pack-tool",
   "version": "1.0.0",
   "description": "通用 Expo 项目打包工具 - 支持 EAS Build、APK 输出管理、多项目配置",
-  "bin": {
-    "pack": "./src/index.js"
-  },
-  "main": "./src/index.js",
+  "main": "./main.js",
   "scripts": {
-    "pack": "node ./src/index.js"
+    "pack": "node main.js",
+    "start": "node main.js"
   },
   "dependencies": {
-    "chalk": "^4.1.2",
-    "inquirer": "^8.2.6",
     "shelljs": "^0.8.5",
-    "ora": "^5.4.1",
     "fs-extra": "^11.2.0",
     "archiver": "^6.0.1",
     "dayjs": "^1.11.10"
