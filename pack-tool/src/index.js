@@ -96,6 +96,18 @@ async function main() {
       await doAdd();
       break;
 
+    // ===================== status =====================
+    case 'status':
+      if (!projectId) { showUsage('请指定项目ID'); break; }
+      await builder.status(projectId);
+      break;
+
+    // ===================== apk-copy =====================
+    case 'apk-copy':
+      if (!projectId) { showUsage('请指定项目ID'); break; }
+      await doAPKCopy();
+      break;
+
     // ===================== help =====================
     default:
       showHelp();
@@ -194,6 +206,24 @@ async function doAdd() {
   config.addProject(projectId, { name, description: desc, root, packageName: pkg, easProfile: profile, outputDir: output });
 }
 
+async function doAPKCopy() {
+  const project = config.getProject(projectId);
+  const apks = apkManager.scanAPKs(project.outputDir);
+
+  if (apks.length === 0) {
+    console.log(`  [!] ${project.outputDir} 中未找到 APK 文件`);
+    return;
+  }
+
+  const latest = apks[0];
+  const result = apkManager.copyAPK(latest.path, project.outputDir, project.name);
+  if (result.success) {
+    console.log(`  [+] APK 已复制到: ${result.destPath}`);
+  } else {
+    console.log(`  [-] 复制失败: ${result.error}`);
+  }
+}
+
 // ==========================================
 // 辅助函数
 // ==========================================
@@ -208,7 +238,9 @@ function showUsage(msg) {
   console.log('    build <id>       执行 EAS Build');
   console.log('    export <id>      导出项目源码');
   console.log('    apk <id>         管理 APK 文件');
+  console.log('    apk-copy <id>    复制最新 APK 到输出目录');
   console.log('    history <id>     查看构建历史');
+  console.log('    status <id>      查看 EAS 构建状态');
   console.log('    list             列出所有项目');
   console.log('    add <id>         添加新项目');
   console.log('');

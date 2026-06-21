@@ -111,6 +111,23 @@ class EASBuilder {
       silent: false
     });
   }
+
+  /**
+   * 查看 EAS 构建状态
+   * @param {string} projectId - 项目 ID
+   */
+  status(projectId) {
+    const project = this.config.getProject(projectId);
+    const projectRoot = path.resolve(this.toolDir, project.root);
+    console.log('');
+    console.log('  [*] 查询 EAS 构建状态...');
+    console.log('');
+    const result = shell.exec('npx eas build:list --platform android --limit 5', {
+      cwd: projectRoot,
+      silent: false
+    });
+    return { success: result.code === 0 };
+  }
 }
 
 module.exports = EASBuilder;
