@@ -3,7 +3,7 @@ import cors from "cors";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { LLMClient, Config } from "coze-coding-dev-sdk";
+import { LLMClient, ASRClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -156,13 +156,11 @@ app.post('/api/v1/parse-task', async (req, res) => {
 });
 
 // ============================================================
-// [预留接口] 语音转文字 (ASR)
+// [核心接口] 语音转文字 (ASR)
 // POST /api/v1/speech-to-text
 //
-// 🔧 此接口为预留接口，您可在此接入扣子 Coze Bot 的语音识别能力
-// 或替换为其他 ASR 服务（如讯飞、阿里云等）
-//
-// 当前实现：仅返回占位响应，可直接被替换
+// 使用 coze-coding-dev-sdk 的 ASRClient 进行语音识别
+// 接收前端上传的音频文件，转为 base64 后调用 ASR 服务
 // ============================================================
 
 app.post('/api/v1/speech-to-text', upload.single('audio'), async (req, res) => {
@@ -179,26 +177,32 @@ app.post('/api/v1/speech-to-text', upload.single('audio'), async (req, res) => {
       size: file.size,
     });
 
-    // ── 预留：后续在此接入 ASR 服务 ──
-    // TODO: 接入扣子 Coze Bot API 进行语音识别
-    // 您可以参考以下流程：
-    // 1. 将 file.buffer 上传到扣子 Bot
-    // 2. 调用 Bot 的语音识别接口
-    // 3. 将识别结果返回给前端
+    // ── 将音频 buffer 转为 base64 ──
+    const audioBase64 = file.buffer.toString('base64');
 
-    // 当前返回占位响应
+    // ── 提取转发 headers ──
+    const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
+
+    // ── 调用 ASR SDK ──
+    const config = new Config();
+    const asrClient = new ASRClient(config, customHeaders);
+
+    console.log('[ASR] 正在调用语音识别服务...');
+    const result = await asrClient.recognize({
+      uid: 'suiyue_user',
+      base64Data: audioBase64,
+    });
+
+    const recognizedText = result.text || '';
+    console.log('[ASR] 识别结果:', recognizedText);
+
     res.json({
-      text: '',  // 此处应返回识别后的文本
-      note: '语音识别功能待接入，请配置扣子 Coze Bot API',
-      fileInfo: {
-        name: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-      },
+      text: recognizedText,
+      duration: result.duration || 0,
     });
   } catch (error: any) {
     console.error('[ASR] 处理失败:', error.message);
-    res.status(500).json({ error: '语音识别失败', message: error.message });
+    res.status(500).json({ error: '语音识别失败', message: error.message, text: '' });
   }
 });
 
