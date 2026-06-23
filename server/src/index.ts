@@ -272,7 +272,7 @@ app.get('/api/v1/download-page', (req, res) => {
     <h1>📱 岁月备忘录</h1>
     <p class="sub">适老化智能提醒APP · 完整项目代码</p>
     <p class="size">📦 压缩包大小: 约 550KB（不含 node_modules）</p>
-    <a class="btn" href="/api/v1/download">⬇ 点击下载项目代码</a>
+    <a class="btn" href="/api/v1/download-zip">⬇ 下载项目代码 (ZIP格式，Windows直接解压)</a>
     <br><br>
     <a class="btn" href="/api/v1/download-packtool" style="background: linear-gradient(135deg, #e94560, #c23152); font-size: 16px; padding: 14px 36px;">🔧 下载通用打包工具 pack-tool</a>
     <div class="info">
@@ -292,13 +292,28 @@ app.get('/api/v1/download-page', (req, res) => {
   res.send(html);
 });
 
-// 文件下载接口 - 项目代码
+// 文件下载接口 - 项目代码（ZIP格式，Windows友好）
 app.get('/api/v1/download', (req, res) => {
+  const zipPath = '/tmp/suiyue-app.zip';
+  if (fs.existsSync(zipPath)) {
+    res.download(zipPath, 'suiyue-app.zip', (err) => {
+      if (err) {
+        console.error('[Download] 下载失败:', err.message);
+        res.status(500).json({ error: '文件下载失败' });
+      }
+    });
+  } else {
+    res.status(404).json({ error: '文件未找到，请先打包' });
+  }
+});
+
+// 备用下载 - tar.gz 格式
+app.get('/api/v1/download-tgz', (req, res) => {
   const zipPath = '/tmp/suiyue-app.tar.gz';
   if (fs.existsSync(zipPath)) {
     res.download(zipPath, 'suiyue-app.tar.gz', (err) => {
       if (err) {
-        console.error('[Download] 下载失败:', err.message);
+        console.error('[Download] TGZ下载失败:', err.message);
         res.status(500).json({ error: '文件下载失败' });
       }
     });
@@ -319,6 +334,21 @@ app.get('/api/v1/download-packtool', (req, res) => {
     });
   } else {
     res.status(404).json({ error: '文件未找到' });
+  }
+});
+
+// 文件下载接口 - ZIP 格式（Windows 友好）
+app.get('/api/v1/download-zip', (req, res) => {
+  const zipPath = '/tmp/suiyue-app.zip';
+  if (fs.existsSync(zipPath)) {
+    res.download(zipPath, 'suiyue-app.zip', (err) => {
+      if (err) {
+        console.error('[Download] ZIP下载失败:', err.message);
+        res.status(500).json({ error: '文件下载失败' });
+      }
+    });
+  } else {
+    res.status(404).json({ error: 'ZIP文件未找到' });
   }
 });
 
