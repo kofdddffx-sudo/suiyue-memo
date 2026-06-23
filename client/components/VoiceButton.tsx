@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { PermissionService } from '@/services/PermissionService';
 import { speakPleaseSpeak, speakRecordingStopped } from '@/services/speechService';
 
@@ -222,9 +223,13 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
           className="items-center justify-center"
         >
           {/* 麦克风图标用文字模拟，确保在所有设备上可见 */}
-          <Text className="text-5xl mb-1">
-            {isRecording ? '🔴' : '🎤'}
-          </Text>
+          <View className="items-center justify-center mb-1">
+            {isRecording ? (
+              <FontAwesome6 name="circle" size={48} color="#FF4444" solid />
+            ) : (
+              <FontAwesome6 name="microphone" size={48} color="#FFFFFF" solid />
+            )}
+          </View>
           <Text className="text-white text-2xl font-bold text-center leading-8">
             {isProcessing
               ? '解析中…'
@@ -239,10 +244,10 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
       {/* 状态提示 */}
       <Text className="text-black text-xl mt-4 font-medium text-center">
         {isProcessing
-          ? '🤔 正在理解您说的话…'
+          ? '正在理解您说的话…'
           : isRecording
-            ? '🎙️ 正在录音，请说出您要记住的事情'
-            : '👆 按住按钮说出要提醒的事项'
+            ? '正在录音，请说出您要记住的事情'
+            : '按住按钮说出要提醒的事项'
         }
       </Text>
     </View>

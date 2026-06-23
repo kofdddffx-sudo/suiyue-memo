@@ -26,14 +26,10 @@ const upload = multer({
 // LLM 客户端初始化
 // ============================================================
 
-let llmClient: LLMClient | null = null;
-
-function getLLMClient(): LLMClient {
-  if (!llmClient) {
-    const config = new Config();
-    llmClient = new LLMClient(config);
-  }
-  return llmClient;
+function createLLMClient(reqHeaders?: Record<string, string>): LLMClient {
+  const config = new Config();
+  const customHeaders = reqHeaders ? HeaderUtils.extractForwardHeaders(reqHeaders) : {};
+  return new LLMClient(config, customHeaders);
 }
 
 // ============================================================
@@ -74,14 +70,23 @@ app.post('/api/v1/parse-task', async (req, res) => {
 
     // ── 调用 LLM 解析任务 ──
     // 使用 System Prompt 引导模型输出结构化 JSON
+    const now = new Date();
+    const currentTimeStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
     const messages = [
       {
         role: "system" as const,
         content: `你是一个智能日程管家，负责将老人的语音描述解析为结构化的提醒任务。
 
+当前时间：${currentTimeStr}
+
 你的任务是分析用户输入的文本，提取以下信息：
 1. task: 核心任务描述（简洁明了，如"给孙子冲奶粉"、"吃药"）
-2. time: 提醒时间，24小时制 "HH:mm" 格式。如果用户说"下午3点"，返回 "15:00"；如果没说具体时间，预估一个合理时间（默认上午9:00）
+2. time: 提醒时间，24小时制 "HH:mm" 格式。
+   - 如果用户说"下午3点"，返回 "15:00"
+   - 如果用户说"3分钟以后"、"半小时后"、"_小时后"等相对时间，请基于当前时间（${currentTimeStr}）计算出实际时间
+   - 例如：当前10:30，用户说"3分钟后"，返回 "10:33"
+   - 如果没说具体时间且不是相对时间，预估一个合理时间（默认上午9:00）
 3. repeat: 重复类型。"daily" = 每天，"weekly" = 每周，"none" = 不重复
 4. confidence: 你对解析结果的自信程度，0.0 到 1.0 之间的数字
 
@@ -95,15 +100,15 @@ app.post('/api/v1/parse-task', async (req, res) => {
       { role: "user" as const, content: text },
     ];
 
-    const client = getLLMClient();
+    const config = new Config();
+    const client = new LLMClient(config);
     console.log('[ParseTask] LLM 客户端已创建，正在调用...');
     const response = await client.invoke(messages, {
-      model: "doubao-seed-2-0-mini-260215",
+      model: 'doubao-seed-2-0-mini-260215',
       temperature: 0.3,
-      streaming: false,
     });
 
-    console.log('[ParseTask] LLM 响应类型:', typeof response, response ? Object.keys(response).join(',') : 'null');
+    console.log('[ParseTask] LLM 响应内容:', response?.content?.substring(0, 200));
 
     if (!response || !response.content) {
       console.warn('[ParseTask] LLM 返回为空，使用默认值');

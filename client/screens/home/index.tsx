@@ -35,7 +35,7 @@ import VoiceButton from '@/components/VoiceButton';
 import TaskCard from '@/components/TaskCard';
 import { useTaskStore, type Task } from '@/stores/TaskContext';
 import { speakTaskConfirmation, speakText } from '@/services/speechService';
-import { initNotifications } from '@/services/notificationService';
+import { initNotifications, scheduleTaskNotification, showTaskNotification, showForegroundServiceNotification } from '@/services/notificationService';
 import { PermissionService } from '@/services/PermissionService';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 
@@ -61,9 +61,20 @@ export default function HomeScreen() {
   const notifInitRef = useRef(false);
   useEffect(() => {
     if (!notifInitRef.current) {
-      initNotifications();
-      PermissionService.request('NOTIFICATIONS');
       notifInitRef.current = true;
+      // 先初始化通知系统（需要较早在启动流程中执行）
+      initNotifications();
+      // 然后异步请求权限和启动前台服务
+      (async () => {
+        const granted = await PermissionService.request('NOTIFICATIONS');
+        if (granted) {
+            try {
+              await showForegroundServiceNotification();
+            } catch (e) {
+              console.warn('[Home] 前台服务通知启动失败:', e);
+            }
+          }
+      })();
     }
   }, []);
 
@@ -159,7 +170,7 @@ export default function HomeScreen() {
 
         if (parsed && parsed.task) {
           // ── 3. 创建本地任务 ──
-          await taskStore.addTask({
+          const newTask = await taskStore.addTask({
             title: parsed.task,
             time: parsed.time,
             repeat: (parsed.repeat as any) || 'none',
@@ -168,21 +179,39 @@ export default function HomeScreen() {
             nextRemindDate: dayjs().format('YYYY-MM-DD') + 'T' + parsed.time + ':00',
           });
 
-          // ── 4. 语音播报确认 ──
+          // ── 4. 计算提醒时间并调度通知 ──
+          const [hours, minutes] = parsed.time.split(':').map(Number);
+          let triggerDate = dayjs().hour(hours).minute(minutes).second(0).toDate();
+          if (triggerDate <= new Date()) {
+            triggerDate = dayjs(triggerDate).add(1, 'day').toDate();
+          }
+          try {
+            await scheduleTaskNotification(
+              newTask.id,
+              `[提醒] ${parsed.task}`,
+              `时间：${parsed.time}`,
+              triggerDate,
+            );
+            console.log('[Home] 通知已调度:', parsed.time, triggerDate.toISOString());
+          } catch (notifError) {
+            console.error('[Home] 通知调度失败:', notifError);
+          }
+
+          // ── 5. 语音播报确认 ──
           speakTaskConfirmation(parsed.task, parsed.time, parsed.repeat);
 
-          // ── 5. 显示通知 ──
+          // ── 6. 显示确认通知 ──
           showTaskNotification(
             'new_task',
             '新提醒已创建',
             `${parsed.time} ${parsed.task}`,
           );
 
-          // ── 6. 刷新列表 ──
+          // ── 7. 刷新列表 ──
           setTodayTasks(taskStore.getTodayTasks());
         } else {
           // AI 没解析出任务，用原文创建
-          await taskStore.addTask({
+          const fallbackTask = await taskStore.addTask({
             title: text,
             time: dayjs().add(1, 'hour').format('HH:mm'),
             repeat: 'none',
@@ -190,6 +219,19 @@ export default function HomeScreen() {
             description: text,
             nextRemindDate: dayjs().add(1, 'hour').toISOString(),
           });
+
+          // 调度提醒通知
+          const fallbackDate = dayjs().add(1, 'hour').toDate();
+          try {
+            await scheduleTaskNotification(
+              fallbackTask.id,
+              `[提醒] ${text}`,
+              `时间：${dayjs(fallbackDate).format('HH:mm')}`,
+              fallbackDate,
+            );
+          } catch (notifError) {
+            console.error('[Home] 后备通知调度失败:', notifError);
+          }
 
           speakText(`已将「${text}」添加到提醒列表`);
 
@@ -310,7 +352,7 @@ export default function HomeScreen() {
             {completedTasks.length > 0 && (
               <>
                 <Text className="text-lg text-green-700 font-medium mb-2 mt-2">
-                  ✅ 已完成 ({completedTasks.length})
+                  已完成 ({completedTasks.length})
                 </Text>
                 {completedTasks.map((task) => (
                   <TaskCard
@@ -338,7 +380,7 @@ export default function HomeScreen() {
           accessibilityRole="button"
         >
           <Text className="text-lg text-blue-700 font-medium">
-            ⚙ 后台保活设置（确保准时提醒）
+            后台保活设置（确保准时提醒）
           </Text>
         </TouchableOpacity>
       </View>

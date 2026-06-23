@@ -152,7 +152,7 @@ function calculateNextDate(repeat: RepeatType, time: string): string {
 
 interface TaskContextType {
   state: TaskState;
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status'>) => Promise<void>;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status'>) => Promise<Task>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
@@ -214,7 +214,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // Action Methods
   // ============================================================
 
-  const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'status'>) => {
+  const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'status'>): Promise<Task> => {
     const now = new Date().toISOString();
     const task: Task = {
       ...taskData,
@@ -223,6 +223,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       status: 'pending',
     };
     dispatch({ type: 'ADD_TASK', payload: task });
+    return task;
   }, []);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
