@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "dingfx",
     "name": "岁月备忘录",
     "slug": "suiyuebeiwanglu",
     "version": "1.0.0",
@@ -11,7 +12,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["audio", "remote-notification"]
+        "UIBackgroundModes": [
+          "audio",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -55,6 +59,12 @@
           "color": "#1E3A5F"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5ce1b784-6a37-489f-9062-24428acb4ca5"
+      }
+    }
   }
 }

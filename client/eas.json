@@ -14,7 +14,7 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_BACKEND_BASE_URL": "http://192.168.1.100:9091"
+        "EXPO_PUBLIC_BACKEND_BASE_URL": "https://da95ba2d-16a1-4627-9084-032909552220.dev.coze.site"
       }
     },
     "production": {
@@ -22,7 +22,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_BACKEND_BASE_URL": "http://192.168.1.100:9091"
+        "EXPO_PUBLIC_BACKEND_BASE_URL": "https://da95ba2d-16a1-4627-9084-032909552220.dev.coze.site"
       }
     }
   }
