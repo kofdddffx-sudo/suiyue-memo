@@ -4,8 +4,11 @@
  * 职责：
  * - 管理任务的增删改查（CRUD）
  * - 任务状态流转：待办 → 已完成 / 已取消
- * - 任务的本地持久化（AsyncStorage）
+ * - 任务的本地持久化（AsyncStorage）—— 立即写入，不依赖 useEffect 延迟
  * - 重复任务的下一次时间计算
+ *
+ * ⚠️ 关键设计：所有状态变更操作都立即持久化到 AsyncStorage，
+ *    避免 useEffect 延迟写入导致 app 关闭时数据丢失（Issue #3 修复）
  */
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
@@ -175,8 +178,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
   });
 
-  // 持久化保存到 AsyncStorage
-  const persistTasks = useCallback(async (tasks: Task[]) => {
+  // ── Ref 始终跟踪最新 tasks（用于即时持久化，不受渲染周期影响） ──
+  const tasksRef = useRef<Task[]>([]);
+  useEffect(() => {
+    tasksRef.current = state.tasks;
+  }, [state.tasks]);
+
+  // ── 持久化函数（立即写入 AsyncStorage） ──
+  const persistImmediately = useCallback(async (tasks: Task[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     } catch (error) {
@@ -184,13 +193,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 加载时从 AsyncStorage 恢复
+  // ── 加载时从 AsyncStorage 恢复 ──
   useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         if (saved) {
           const tasks: Task[] = JSON.parse(saved);
+          // 先填充 ref（确保后面 addTask/removeTask 有数据）
+          tasksRef.current = tasks;
           dispatch({ type: 'SET_TASKS', payload: tasks });
         }
       } catch (error) {
@@ -201,17 +212,18 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // 当 tasks 变化时自动持久化
-  const prevTasksRef = useRef(state.tasks);
+  // ── 后备持久化（覆盖 useEffect 方式，兜底保护） ──
+  // 即使 action handler 的即时保存没执行，这里也会在下一次渲染时保存
+  const prevTasksRef = useRef<Task[]>([]);
   useEffect(() => {
     if (!state.isLoading && state.tasks !== prevTasksRef.current) {
       prevTasksRef.current = state.tasks;
-      persistTasks(state.tasks);
+      persistImmediately(state.tasks);
     }
-  }, [state.tasks, state.isLoading, persistTasks]);
+  }, [state.tasks, state.isLoading, persistImmediately]);
 
   // ============================================================
-  // Action Methods
+  // Action Methods（立即持久化 + dispatch）
   // ============================================================
 
   const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'status'>): Promise<Task> => {
@@ -222,21 +234,54 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       createdAt: now,
       status: 'pending',
     };
+
+    // 先持久化（确保数据安全，即使 app 立刻被关闭）
+    const newTasks = [...tasksRef.current, task];
+    tasksRef.current = newTasks;
+    await persistImmediately(newTasks);
+
+    // 再 dispatch 更新 UI
     dispatch({ type: 'ADD_TASK', payload: task });
     return task;
-  }, []);
+  }, [persistImmediately]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
-  }, []);
+    // 即时持久化（用 ref 获取最新状态）
+    const updatedTasks = tasksRef.current.map((t) =>
+      t.id === id ? { ...t, ...updates } : t
+    );
+    tasksRef.current = updatedTasks;
+    await persistImmediately(updatedTasks);
+  }, [persistImmediately]);
 
   const removeTask = useCallback(async (id: string) => {
     dispatch({ type: 'REMOVE_TASK', payload: id });
-  }, []);
+    // 即时持久化
+    const filteredTasks = tasksRef.current.filter((t) => t.id !== id);
+    tasksRef.current = filteredTasks;
+    await persistImmediately(filteredTasks);
+  }, [persistImmediately]);
 
   const toggleComplete = useCallback(async (id: string) => {
     dispatch({ type: 'TOGGLE_COMPLETE', payload: id });
-  }, []);
+    // 即时持久化（计算新的状态）
+    const now = new Date().toISOString();
+    const updatedTasks = tasksRef.current.map((t) => {
+      if (t.id !== id) return t;
+      if (t.status === 'completed') {
+        return { ...t, status: 'pending' as TaskStatus, completedAt: undefined };
+      }
+      const updated = { ...t, status: 'completed' as TaskStatus, completedAt: now };
+      if (t.repeat !== 'none') {
+        updated.status = 'pending';
+        updated.nextRemindDate = calculateNextDate(t.repeat, t.time);
+      }
+      return updated;
+    });
+    tasksRef.current = updatedTasks;
+    await persistImmediately(updatedTasks);
+  }, [persistImmediately]);
 
   // ============================================================
   // 查询方法
@@ -250,7 +295,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     return state.tasks.filter((t) => {
       if (t.status === 'cancelled') return false;
 
-      // 已完成的任务如果是在今天完成的也显示（已完成状态）
+      // 已完成的任务如果是在今天完成的也显示
       if (t.status === 'completed') {
         return t.completedAt?.startsWith(todayStr) ?? false;
       }

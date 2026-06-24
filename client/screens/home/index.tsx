@@ -35,8 +35,9 @@ import VoiceButton from '@/components/VoiceButton';
 import TaskCard from '@/components/TaskCard';
 import { useTaskStore, type Task } from '@/stores/TaskContext';
 import { speakTaskConfirmation, speakText } from '@/services/speechService';
-import { initNotifications, scheduleTaskNotification, showTaskNotification, showForegroundServiceNotification } from '@/services/notificationService';
+import { initNotifications, scheduleTaskNotification, showTaskNotification, showForegroundServiceNotification, addNotificationListeners } from '@/services/notificationService';
 import { PermissionService } from '@/services/PermissionService';
+import { stopAlarmSound } from '@/services/alarmService';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 // ============================================================
@@ -64,6 +65,21 @@ export default function HomeScreen() {
       notifInitRef.current = true;
       // 先初始化通知系统（需要较早在启动流程中执行）
       initNotifications();
+
+      // 注册通知按钮点击监听（"已完成"或"不再提醒"时停止闹铃）
+      const removeListener = addNotificationListeners(
+        (taskId) => {
+          console.log('[Home] 通知按钮：已完成', taskId);
+          stopAlarmSound();
+          taskStore.toggleComplete(taskId);
+        },
+        (taskId) => {
+          console.log('[Home] 通知按钮：不再提醒', taskId);
+          stopAlarmSound();
+          taskStore.removeTask(taskId);
+        },
+      );
+
       // 然后异步请求权限和启动前台服务
       (async () => {
         const granted = await PermissionService.request('NOTIFICATIONS');
@@ -75,6 +91,9 @@ export default function HomeScreen() {
             }
           }
       })();
+
+      // 组件卸载时清理监听器
+      return () => removeListener();
     }
   }, []);
 
@@ -86,7 +105,13 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // 每次页面获得焦点时刷新任务列表
+  // ── 核心修复：当 Context 中的任务数据变化时，同步更新本地列表 ──
+  // 解决了 dispatch 后 getTodayTasks() 返回旧数据的问题（Issue #1, #3）
+  useEffect(() => {
+    setTodayTasks(taskStore.getTodayTasks());
+  }, [taskStore.state.tasks]);
+
+  // 每次页面获得焦点时刷新任务列表（覆盖 useFocusEffect 确保初始加载）
   useFocusEffect(
     useCallback(() => {
       setTodayTasks(taskStore.getTodayTasks());
@@ -207,8 +232,7 @@ export default function HomeScreen() {
             `${parsed.time} ${parsed.task}`,
           );
 
-          // ── 7. 刷新列表 ──
-          setTodayTasks(taskStore.getTodayTasks());
+          // ── 7. 刷新列表（同步由 useEffect 自动处理） ──
         } else {
           // AI 没解析出任务，用原文创建
           const fallbackTask = await taskStore.addTask({
@@ -235,7 +259,7 @@ export default function HomeScreen() {
 
           speakText(`已将「${text}」添加到提醒列表`);
 
-          setTodayTasks(taskStore.getTodayTasks());
+          // 刷新列表（同步由 useEffect 自动处理）
         }
       } else {
         // ASR 失败，提示用户
@@ -258,12 +282,12 @@ export default function HomeScreen() {
 
   const handleToggleComplete = async (id: string) => {
     await taskStore.toggleComplete(id);
-    setTodayTasks(taskStore.getTodayTasks());
+    // 不再手动 setTodayTasks（已由 useEffect 自动同步）
   };
 
   const handleDelete = async (id: string) => {
     await taskStore.removeTask(id);
-    setTodayTasks(taskStore.getTodayTasks());
+    // 不再手动 setTodayTasks（已由 useEffect 自动同步）
   };
 
   // ============================================================
