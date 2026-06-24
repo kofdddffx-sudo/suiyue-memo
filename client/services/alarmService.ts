@@ -113,14 +113,11 @@ export async function playAlarmSound(): Promise<void> {
     // 先停止已有闹铃
     await stopAlarmSound();
 
-    // 设置音频模式：最大化音量、后台播放
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,       // iOS 静音模式下也播放
-      staysActiveInBackground: true,     // 后台继续播放
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    });
+    // 注意：不在此处修改 Audio.setAudioModeAsync
+    // 录音需要 Audio 处于 recording 模式( allowsRecordingIOS: true )
+    // 如果在播放闹铃时改变音频模式，会和后续的录音产生竞争条件
+    // 导致语音识别失败（Issue #2 的根源）
+    // expo-av 的 Sound 播放不需要特定音频模式
 
     // 生成闹铃 WAV 数据
     const base64 = generateAlarmWavBase64();

@@ -114,16 +114,48 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
     }
 
     try {
-      // 设置音频模式
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-      });
+      // 设置音频模式：确保录音状态下独占音频通道
+      // 重要：必须在 prepareToRecordAsync 之前设置
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (modeError) {
+        console.warn('[VoiceButton] 设置音频模式失败，继续尝试录音:', modeError);
+      }
 
-      // 创建新录音
+      // 创建新录音（16kHz 单声道 AAC，ASR 兼容性最佳）
       const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.prepareToRecordAsync({
+        isMeteringEnabled: true,
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 32000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 32000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 32000,
+        },
+      });
       await recording.startAsync();
       recordingRef.current = recording;
       setIsRecording(true);
