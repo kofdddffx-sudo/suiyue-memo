@@ -133,7 +133,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
 // ============================================================
 
 /**
- * 立即显示任务提醒通知
+ * 立即显示任务创建确认通知（仅震动，不播放闹铃）
+ * 闹铃只在定时提醒到达时播放
  */
 export async function showTaskNotification(
   taskId: string,
@@ -146,16 +147,18 @@ export async function showTaskNotification(
     data: { taskId },
     categoryIdentifier: 'task_actions',
     sound: 'default',                                          // 系统默认音效
+    ...(Platform.OS === 'android' && {
+      channelId: NOTIFICATION_CHANNEL_ID,
+      color: '#DC2626',
+      priority: Notifications.AndroidNotificationPriority.MAX,
+      vibrate: true,
+    }),
   } as Notifications.NotificationContentInput & Record<string, unknown>;
 
   await Notifications.scheduleNotificationAsync({
     content,
     trigger: null,
   });
-
-  // 同时触发闹铃播放
-  playAlarmSound();
-  scheduleAlarmStop(30000);
 }
 
 /**
