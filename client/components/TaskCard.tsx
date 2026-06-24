@@ -138,6 +138,19 @@ export default function TaskCard({ task, onToggleComplete, onDelete }: TaskCardP
           )}
         </View>
 
+        {/* ── 语音原文（语音识别出的原始文本） ── */}
+        {task.description ? (
+          <Text
+            className={`
+              text-base mt-2 leading-6
+              ${isCompleted ? 'text-green-600' : 'text-gray-500'}
+            `}
+            numberOfLines={2}
+          >
+            {task.description}
+          </Text>
+        ) : null}
+
         {/* AI 置信度提示 */}
         {task.confidence < 0.6 && (
           <Text className="text-base text-amber-600 mt-1">
