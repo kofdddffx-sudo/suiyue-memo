@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
 
 import { Screen } from '@/components/Screen';
@@ -35,7 +36,7 @@ import VoiceButton from '@/components/VoiceButton';
 import TaskCard from '@/components/TaskCard';
 import { useTaskStore, type Task } from '@/stores/TaskContext';
 import { speakTaskConfirmation, speakText } from '@/services/speechService';
-import { initNotifications, scheduleTaskNotification, showTaskNotification, showForegroundServiceNotification, addNotificationListeners } from '@/services/notificationService';
+import { initNotifications, scheduleTaskNotification, showForegroundServiceNotification, addNotificationListeners } from '@/services/notificationService';
 import { PermissionService } from '@/services/PermissionService';
 import { stopAlarmSound } from '@/services/alarmService';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -225,12 +226,10 @@ export default function HomeScreen() {
           // ── 5. 语音播报确认 ──
           speakTaskConfirmation(parsed.task, parsed.time, parsed.repeat);
 
-          // ── 6. 显示确认通知 ──
-          showTaskNotification(
-            'new_task',
-            '新提醒已创建',
-            `${parsed.time} ${parsed.task}`,
-          );
+          // ── 6. 震动确认反馈（不发出声音） ──
+          try {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch {} // 震动失败不影响主流程
 
           // ── 7. 刷新列表（同步由 useEffect 自动处理） ──
         } else {
