@@ -4,6 +4,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { LLMClient, ASRClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
+import dayjs from "dayjs";
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -60,6 +61,7 @@ app.get('/api/v1/health', (req, res) => {
 
 app.post('/api/v1/parse-task', async (req, res) => {
   const { text } = req.body;
+  const todayStr = dayjs().format('YYYY-MM-DD');
   try {
 
     if (!text || typeof text !== 'string') {
@@ -72,13 +74,15 @@ app.post('/api/v1/parse-task', async (req, res) => {
     // 使用 System Prompt 引导模型输出结构化 JSON
     const now = new Date();
     const currentTimeStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const dayOfWeek = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
 
     const messages = [
       {
         role: "system" as const,
         content: `你是一个智能日程管家，负责将老人的语音描述解析为结构化的提醒任务。
 
-当前时间：${currentTimeStr}
+当前时间：${currentTimeStr}（星期${dayOfWeek}）
+今天日期：${todayStr}
 
 你的任务是分析用户输入的文本，提取以下信息：
 1. task: 核心任务描述（简洁明了，如"给孙子冲奶粉"、"吃药"）
@@ -87,15 +91,24 @@ app.post('/api/v1/parse-task', async (req, res) => {
    - 如果用户说"3分钟以后"、"半小时后"、"_小时后"等相对时间，请基于当前时间（${currentTimeStr}）计算出实际时间
    - 例如：当前10:30，用户说"3分钟后"，返回 "10:33"
    - 如果没说具体时间且不是相对时间，预估一个合理时间（默认上午9:00）
-3. repeat: 重复类型。"daily" = 每天，"weekly" = 每周，"none" = 不重复
-4. confidence: 你对解析结果的自信程度，0.0 到 1.0 之间的数字
+3. date: 指定日期，格式 "YYYY-MM-DD"。
+   - 如果用户说"今天"或不指定日期，返回 "${todayStr}"
+   - 如果用户说"明天"，返回明天的日期（基于当前日期+1天）
+   - 如果用户说"后天"，返回后天的日期（基于当前日期+2天）
+   - 如果用户说"大后天"，返回后天的日期（基于当前日期+3天）
+   - 如果用户说"下周一"、"下周二"等，计算对应的具体日期
+   - 如果用户说"6月25日"、"7月1号"等具体日期，转换为 YYYY-MM-DD 格式
+   - 如果用户说"每周X"且是重复任务，date 设为 "${todayStr}"（从今天开始）
+4. repeat: 重复类型。"daily" = 每天，"weekly" = 每周，"none" = 不重复
+5. confidence: 你对解析结果的自信程度，0.0 到 1.0 之间的数字
 
 规则：
 - 如果文本中明确说"每天"、"每天早上"等，repeat 设为 "daily"
 - 如果文本中明确说"每周"、"每个星期"等，repeat 设为 "weekly"
 - 否则 repeat 设为 "none"
+- date 字段必须始终返回，即使没有指定日期也返回今天的日期
 - 始终只返回 JSON 格式，不要包含其他文字
-- JSON 格式示例：{"task": "给孙子冲奶粉", "time": "15:00", "repeat": "daily", "confidence": 0.9}`,
+- JSON 格式示例：{"task": "给孙子冲奶粉", "time": "15:00", "date": "${todayStr}", "repeat": "daily", "confidence": 0.9}`,
       },
       { role: "user" as const, content: text },
     ];
@@ -115,6 +128,7 @@ app.post('/api/v1/parse-task', async (req, res) => {
       return res.json({
         task: text,
         time: '09:00',
+        date: todayStr,
         repeat: 'none',
         confidence: 0.3,
       });
@@ -132,6 +146,7 @@ app.post('/api/v1/parse-task', async (req, res) => {
       const result = {
         task: parsed.task || text,
         time: parsed.time || '09:00',
+        date: parsed.date || todayStr,
         repeat: parsed.repeat || 'none',
         confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.5,
       };
@@ -144,6 +159,7 @@ app.post('/api/v1/parse-task', async (req, res) => {
       res.json({
         task: text,
         time: '09:00',
+        date: todayStr,
         repeat: 'none',
         confidence: 0.3,
       });
@@ -154,6 +170,7 @@ app.post('/api/v1/parse-task', async (req, res) => {
     res.json({
       task: text,
       time: '09:00',
+      date: todayStr,
       repeat: 'none',
       confidence: 0.3,
     });

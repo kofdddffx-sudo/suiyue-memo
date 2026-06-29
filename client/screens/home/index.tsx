@@ -107,15 +107,15 @@ export default function HomeScreen() {
   }, []);
 
   // ── 核心修复：当 Context 中的任务数据变化时，同步更新本地列表 ──
-  // 解决了 dispatch 后 getTodayTasks() 返回旧数据的问题（Issue #1, #3）
+  // 显示所有任务（包括明天、后天、指定日期的任务）
   useEffect(() => {
-    setTodayTasks(taskStore.getTodayTasks());
+    setTodayTasks(taskStore.state.tasks);
   }, [taskStore.state.tasks]);
 
   // 每次页面获得焦点时刷新任务列表（覆盖 useFocusEffect 确保初始加载）
   useFocusEffect(
     useCallback(() => {
-      setTodayTasks(taskStore.getTodayTasks());
+      setTodayTasks(taskStore.state.tasks);
     }, [taskStore]),
   );
 
@@ -130,6 +130,7 @@ export default function HomeScreen() {
   const parseVoiceToTask = async (text: string): Promise<{
     task: string;
     time: string;
+    date: string;
     repeat: string;
     confidence: number;
   } | null> => {
@@ -152,6 +153,7 @@ export default function HomeScreen() {
       return {
         task: data.task || text,
         time: data.time || dayjs().add(1, 'hour').format('HH:mm'),
+        date: data.date || dayjs().format('YYYY-MM-DD'),
         repeat: data.repeat || 'none',
         confidence: data.confidence || 0.5,
       };
@@ -196,35 +198,40 @@ export default function HomeScreen() {
 
         if (parsed && parsed.task) {
           // ── 3. 创建本地任务 ──
+          const taskDate = parsed.date || dayjs().format('YYYY-MM-DD');
           const newTask = await taskStore.addTask({
             title: parsed.task,
             time: parsed.time,
+            date: taskDate,
             repeat: (parsed.repeat as any) || 'none',
             confidence: parsed.confidence,
             description: text,
-            nextRemindDate: dayjs().format('YYYY-MM-DD') + 'T' + parsed.time + ':00',
+            nextRemindDate: taskDate + 'T' + parsed.time + ':00',
           });
 
           // ── 4. 计算提醒时间并调度通知 ──
           const [hours, minutes] = parsed.time.split(':').map(Number);
-          let triggerDate = dayjs().hour(hours).minute(minutes).second(0).toDate();
+          let triggerDate = dayjs(taskDate).hour(hours).minute(minutes).second(0).toDate();
           if (triggerDate <= new Date()) {
-            triggerDate = dayjs(triggerDate).add(1, 'day').toDate();
+            // 如果解析出的日期是今天且时间已过，推迟到明天
+            if (dayjs(taskDate).isSame(dayjs(), 'day')) {
+              triggerDate = dayjs(triggerDate).add(1, 'day').toDate();
+            }
           }
           try {
             await scheduleTaskNotification(
               newTask.id,
               `[提醒] ${parsed.task}`,
-              `时间：${parsed.time}`,
+              `时间：${taskDate} ${parsed.time}`,
               triggerDate,
             );
-            console.log('[Home] 通知已调度:', parsed.time, triggerDate.toISOString());
+            console.log('[Home] 通知已调度:', taskDate, parsed.time, triggerDate.toISOString());
           } catch (notifError) {
             console.error('[Home] 通知调度失败:', notifError);
           }
 
           // ── 5. 语音播报确认 ──
-          speakTaskConfirmation(parsed.task, parsed.time, parsed.repeat);
+          speakTaskConfirmation(parsed.task, parsed.time, parsed.repeat, taskDate);
 
           // ── 6. 震动确认反馈（不发出声音） ──
           try {
@@ -293,7 +300,17 @@ export default function HomeScreen() {
   // 渲染
   // ============================================================
 
-  const pendingTasks = todayTasks.filter((t) => t.status === 'pending');
+  const todayStr = dayjs().format('YYYY-MM-DD');
+  const pendingTasks = todayTasks
+    .filter((t) => t.status === 'pending')
+    .sort((a, b) => {
+      // 按日期排序：今天 → 明天 → 后天 → 更远
+      const dateA = a.date || todayStr;
+      const dateB = b.date || todayStr;
+      if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+      // 同日期按时间排序
+      return (a.time || '').localeCompare(b.time || '');
+    });
   const completedTasks = todayTasks.filter((t) => t.status === 'completed');
 
   return (
@@ -347,7 +364,7 @@ export default function HomeScreen() {
         <View className="flex-row items-center my-4">
           <View className="flex-1 h-0.5 bg-gray-300" />
           <Text className="text-xl font-bold text-gray-600 mx-4">
-            今日待办
+            待办事项
           </Text>
           <View className="flex-1 h-0.5 bg-gray-300" />
         </View>
@@ -356,7 +373,7 @@ export default function HomeScreen() {
         {pendingTasks.length === 0 && completedTasks.length === 0 ? (
           <View className="items-center py-12">
             <Text className="text-xl text-gray-600 text-center leading-8">
-              今天还没有提醒事项{'\n'}按住下面的按钮，说出您要记住的事情
+              还没有待办事项{'\n'}按住下面的按钮，说出您要记住的事情
             </Text>
           </View>
         ) : (

@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import dayjs from 'dayjs';
 import type { Task, RepeatType } from '@/stores/TaskContext';
 
 // ============================================================
@@ -40,6 +41,19 @@ const repeatLabels: Record<RepeatType, string> = {
   daily: '每天',
   weekly: '每周',
   custom: '',
+};
+
+/** 获取日期的友好显示（今天/明天/后天/X月X日） */
+const getDateLabel = (dateStr?: string): string | null => {
+  if (!dateStr) return null;
+  const today = dayjs().startOf('day');
+  const taskDate = dayjs(dateStr).startOf('day');
+  const diff = taskDate.diff(today, 'day');
+  if (diff === 0) return null; // 今天不显示日期标签
+  if (diff === 1) return '明天';
+  if (diff === 2) return '后天';
+  if (diff > 2 && diff <= 7) return `${diff}天后`;
+  return taskDate.format('M月D日');
 };
 
 /** 格式化时间显示（24小时制大号字体） */
@@ -126,11 +140,16 @@ export default function TaskCard({ task, onToggleComplete, onDelete }: TaskCardP
           {task.title}
         </Text>
 
-        {/* 时间和重复标识 */}
+        {/* 时间和日期/重复标识 */}
         <View className="flex-row items-center mt-2">
           <Text className="text-xl font-semibold text-blue-700">
             {formatTime(task.time)}
           </Text>
+          {getDateLabel(task.date) && (
+            <Text className={`text-lg ml-3 font-medium ${isCompleted ? 'text-green-600' : 'text-purple-600'}`}>
+              {getDateLabel(task.date)}
+            </Text>
+          )}
           {task.repeat !== 'none' && (
             <Text className="text-lg text-orange-600 ml-3 font-medium">
               {repeatLabels[task.repeat]}

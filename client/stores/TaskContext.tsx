@@ -30,6 +30,7 @@ export interface Task {
   title: string;                 // 任务标题
   description?: string;          // 任务描述（可选）
   time: string;                  // 提醒时间，格式 "HH:mm"
+  date?: string;                 // 指定日期，格式 "YYYY-MM-DD"（可选，默认今天）
   repeat: RepeatType;            // 重复类型
   status: TaskStatus;            // 当前状态
   confidence: number;            // AI 解析置信度 0-1
@@ -300,9 +301,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         return t.completedAt?.startsWith(todayStr) ?? false;
       }
 
-      // 待办任务：今天创建或今天有提醒
-      const createdToday = t.createdAt.startsWith(todayStr);
+      // 待办任务：检查任务的 date 字段是否为今天
+      const taskDate = t.date || t.createdAt.split('T')[0];
+      if (taskDate === todayStr) return true;
+
+      // 检查 nextRemindDate 是否为今天
       const remindToday = t.nextRemindDate?.startsWith(todayStr) ?? false;
+      if (remindToday) return true;
 
       // 如果设置了提醒时间，检查是否在今天的提醒周期内
       if (t.repeat === 'daily') return true; // 每日任务每天都显示
@@ -311,7 +316,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         return createdDay === today.getDay();
       }
 
-      return createdToday || remindToday;
+      // 今天创建的任务也显示
+      const createdToday = t.createdAt.startsWith(todayStr);
+      return createdToday;
     }).sort((a, b) => {
       // 按时间排序
       return a.time.localeCompare(b.time);

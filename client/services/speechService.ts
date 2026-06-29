@@ -8,7 +8,7 @@
  * 使用 expo-speech 实现文字转语音
  */
 
-import * as Speech from 'expo-speech';
+import dayjs from 'dayjs';import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
 
 // ============================================================
@@ -23,13 +23,37 @@ import { Platform } from 'react-native';
  * @param time       提醒时间（如 "15:00"）
  * @param repeat     重复类型
  */
-export function speakTaskConfirmation(taskTitle: string, time: string, repeat: string) {
+export function speakTaskConfirmation(taskTitle: string, time: string, repeat: string, date?: string) {
   // 格式化时间显示
   const [hours, minutes] = time.split(':').map(Number);
   const timeText = `${hours}点${minutes > 0 ? minutes + '分' : ''}`;
 
+  // 格式化日期显示
+  let dateText = '';
+  if (date) {
+    const today = dayjs().format('YYYY-MM-DD');
+    const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+    if (date === today) {
+      dateText = '今天';
+    } else if (date === tomorrow) {
+      dateText = '明天';
+    } else if (dayjs().add(2, 'day').format('YYYY-MM-DD') === date) {
+      dateText = '后天';
+    } else {
+      // 显示具体日期（去掉前导零）
+      const d = dayjs(date);
+      dateText = `${d.month() + 1}月${d.date()}日`;
+    }
+  }
+
   // 构建播报文本（口语化、慢速）
-  let text = `已为您设置提醒。${timeText}，${taskTitle}`;
+  let text = `已为您设置提醒。`;
+  if (dateText) {
+    text += `${dateText}${timeText}，`;
+  } else {
+    text += `${timeText}，`;
+  }
+  text += taskTitle;
 
   if (repeat === 'daily') {
     text += '。这个提醒会每天重复。';
