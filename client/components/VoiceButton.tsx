@@ -21,7 +21,7 @@ import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PermissionService } from '@/services/PermissionService';
-import { speakPleaseSpeak, speakRecordingStopped } from '@/services/speechService';
+import { speakRecordingStopped } from '@/services/speechService';
 
 // ============================================================
 // Props
@@ -165,8 +165,8 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       }
 
-      // 语音引导
-      speakPleaseSpeak();
+      // 注意：不在录音时播放 TTS，避免干扰录音
+      // speakPleaseSpeak() 已移除，改为录音开始前通过视觉提示
 
       console.log('[VoiceButton] 录音开始');
     } catch (error) {
@@ -185,6 +185,19 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
       recordingRef.current = null;
       setIsRecording(false);
 
+      // 重置音频模式（允许播放，不再录音）
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (modeError) {
+        console.warn('[VoiceButton] 重置音频模式失败:', modeError);
+      }
+
       // 触觉反馈
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -192,14 +205,20 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
 
       if (uri) {
         console.log('[VoiceButton] 录音完成:', uri);
-        // 语音确认
-        speakRecordingStopped();
+        // 延迟语音确认，避免与音频模式切换冲突
+        setTimeout(() => {
+          speakRecordingStopped();
+        }, 300);
         // 将音频 URI 传给父组件处理
         onRecordingComplete(uri);
+      } else {
+        console.error('[VoiceButton] 录音完成但 URI 为空');
+        Alert.alert('录音失败', '未能获取录音文件，请重试');
       }
     } catch (error) {
-      console.error('停止录音失败:', error);
+      console.error('[VoiceButton] 停止录音失败:', error);
       setIsRecording(false);
+      Alert.alert('录音错误', '停止录音时出现错误，请重试');
     }
   };
 

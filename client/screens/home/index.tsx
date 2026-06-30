@@ -38,6 +38,7 @@ import { useTaskStore, type Task } from '@/stores/TaskContext';
 import { speakTaskConfirmation, speakText } from '@/services/speechService';
 import { initNotifications, scheduleTaskNotification, showForegroundServiceNotification, addNotificationListeners } from '@/services/notificationService';
 import { PermissionService } from '@/services/PermissionService';
+import { createFormDataFile } from '@/utils';
 import { stopAlarmSound } from '@/services/alarmService';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 
@@ -169,27 +170,35 @@ export default function HomeScreen() {
 
   const handleRecordingComplete = async (audioUri: string) => {
     setIsProcessing(true);
+    console.log('[Home] 收到录音 URI:', audioUri);
 
     try {
       // ── 1. 将音频文件上传到后端进行语音识别 ──
       const formData = new FormData();
-      const file = {
-        uri: audioUri,
-        type: 'audio/m4a',
-        name: 'voice.m4a',
-      };
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：POST /api/v1/speech-to-text
+       * Body 参数：audio (FormData file, audio/m4a)
+       */
+      const file = await createFormDataFile(audioUri, 'voice.m4a', 'audio/m4a');
       formData.append('audio', file as any);
 
+      console.log('[Home] 正在上传音频到 ASR 服务...');
       const asrResponse = await fetch(`${API_BASE}/api/v1/speech-to-text`, {
         method: 'POST',
         body: formData,
       });
+
+      console.log('[Home] ASR 响应状态:', asrResponse.status);
 
       let text = '';
       if (asrResponse.ok) {
         const asrData = await asrResponse.json();
         text = asrData.text || '';
         console.log('[Home] ASR 识别结果:', text);
+      } else {
+        const errorData = await asrResponse.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[Home] ASR 请求失败:', asrResponse.status, errorData);
       }
 
       // ── 2. 如果 ASR 成功，用 AI 解析文本 ──

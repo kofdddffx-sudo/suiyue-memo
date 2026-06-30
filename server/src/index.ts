@@ -190,6 +190,7 @@ app.post('/api/v1/speech-to-text', upload.single('audio'), async (req, res) => {
     const file = req.file;
 
     if (!file) {
+      console.error('[ASR] 未收到音频文件');
       return res.status(400).json({ error: '请上传音频文件' });
     }
 
@@ -197,10 +198,12 @@ app.post('/api/v1/speech-to-text', upload.single('audio'), async (req, res) => {
       originalname: file.originalname,
       mimetype: file.mimetype,
       size: file.size,
+      bufferLength: file.buffer?.length || 0,
     });
 
     // ── 将音频 buffer 转为 base64 ──
     const audioBase64 = file.buffer.toString('base64');
+    console.log('[ASR] Base64 长度:', audioBase64.length);
 
     // ── 提取转发 headers ──
     const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
@@ -217,6 +220,7 @@ app.post('/api/v1/speech-to-text', upload.single('audio'), async (req, res) => {
 
     const recognizedText = result.text || '';
     console.log('[ASR] 识别结果:', recognizedText);
+    console.log('[ASR] 完整结果:', JSON.stringify(result, null, 2));
 
     res.json({
       text: recognizedText,
@@ -224,6 +228,7 @@ app.post('/api/v1/speech-to-text', upload.single('audio'), async (req, res) => {
     });
   } catch (error: any) {
     console.error('[ASR] 处理失败:', error.message);
+    console.error('[ASR] 错误堆栈:', error.stack);
     res.status(500).json({ error: '语音识别失败', message: error.message, text: '' });
   }
 });
