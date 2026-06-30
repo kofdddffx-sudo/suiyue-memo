@@ -22,57 +22,46 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # 3. 安装 Java (Android 构建需要)
+      # 3. 安装 pnpm
+      - name: Setup pnpm
+        run: npm install -g pnpm
+
+      # 4. 安装 Java (Android 构建需要)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 4. 安装 Android SDK
+      # 5. 安装 Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # 5. 安装项目依赖
+      # 6. 安装项目依赖
       - name: Install dependencies
         run: |
-          npm install -g pnpm
           pnpm install
           cd client && pnpm install
           cd ../server && pnpm install
 
-      # 6. 生成原生 Android 项目
+      # 7. 生成原生 Android 项目
       - name: Prebuild Android
         run: |
           cd client
-          npx expo prebuild --platform android --no-install
+          npx expo prebuild --platform android
 
-      # 7. 构建 APK
+      # 8. 构建 APK
       - name: Build APK
         run: |
           cd client/android
           chmod +x gradlew
           ./gradlew assembleRelease
 
-      # 8. 上传 APK
+      # 9. 上传 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: client/android/app/build/outputs/apk/release/app-release-unsigned.apk
-          retention-days: 30
-
-      # 9. 重命名 APK（可选，使文件名更清晰）
-      - name: Rename APK
-        run: |
-          mv client/android/app/build/outputs/apk/release/app-release-unsigned.apk client/android/app/build/outputs/apk/release/suiyue-memo-v1.0.0.apk
-
-      # 10. 上传重命名后的 APK
-      - name: Upload renamed APK
-        uses: actions/upload-artifact@v4
-        with:
           name: suiyue-memo-apk
-          path: client/android/app/build/outputs/apk/release/suiyue-memo-v1.0.0.apk
+          path: client/android/app/build/outputs/apk/release/*.apk
           retention-days: 30
