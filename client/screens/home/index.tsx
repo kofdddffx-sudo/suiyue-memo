@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system/legacy';
 import dayjs from 'dayjs';
 
 import { Screen } from '@/components/Screen';
@@ -173,17 +174,34 @@ export default function HomeScreen() {
     console.log('[Home] 收到录音 URI:', audioUri);
 
     try {
+      // ── 0. 验证录音文件存在 ──
+      if (Platform.OS !== 'web') {
+        try {
+          const fileInfo = await (FileSystem as any).getInfoAsync(audioUri);
+          console.log('[Home] 录音文件信息:', JSON.stringify(fileInfo));
+          if (!fileInfo.exists) {
+            Alert.alert('录音错误', '录音文件不存在，请重新录音');
+            setIsProcessing(false);
+            return;
+          }
+          console.log('[Home] 录音文件大小:', fileInfo.size, 'bytes');
+        } catch (fileError) {
+          console.error('[Home] 检查录音文件失败:', fileError);
+        }
+      }
+
       // ── 1. 将音频文件上传到后端进行语音识别 ──
       const formData = new FormData();
       /**
        * 服务端文件：server/src/index.ts
        * 接口：POST /api/v1/speech-to-text
-       * Body 参数：audio (FormData file, audio/m4a)
+       * Body 参数：audio (FormData file, audio/mp4)
        */
-      const file = await createFormDataFile(audioUri, 'voice.m4a', 'audio/m4a');
+      // 使用 M4A/AAC 格式（ASR 兼容性最佳）
+      const file = await createFormDataFile(audioUri, 'voice.m4a', 'audio/mp4');
       formData.append('audio', file as any);
 
-      console.log('[Home] 正在上传音频到 ASR 服务...');
+      console.log('[Home] 正在上传音频到 ASR 服务...', `${API_BASE}/api/v1/speech-to-text`);
       const asrResponse = await fetch(`${API_BASE}/api/v1/speech-to-text`, {
         method: 'POST',
         body: formData,
@@ -283,9 +301,16 @@ export default function HomeScreen() {
           '请确保网络连接正常，然后重试。\n您也可以长按录音按钮再次说话。',
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Home] 处理录音失败:', error);
-      Alert.alert('处理失败', '抱歉，处理录音时出现错误，请重试');
+      console.error('[Home] 错误详情:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+      });
+      // 显示更详细的错误信息
+      const errorMsg = error?.message || '未知错误';
+      Alert.alert('处理失败', `抱歉，处理录音时出现错误：\n${errorMsg}\n\n请重试`);
     } finally {
       setIsProcessing(false);
     }

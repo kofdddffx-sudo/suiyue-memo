@@ -128,7 +128,7 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
         console.warn('[VoiceButton] 设置音频模式失败，继续尝试录音:', modeError);
       }
 
-      // 创建新录音（16kHz 单声道 AAC，ASR 兼容性最佳）
+      // 创建新录音（16kHz 单声道 M4A/AAC，ASR 兼容性最佳）
       const recording = new Audio.Recording();
       await recording.prepareToRecordAsync({
         isMeteringEnabled: true,
@@ -138,7 +138,7 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
           audioEncoder: Audio.AndroidAudioEncoder.AAC,
           sampleRate: 16000,
           numberOfChannels: 1,
-          bitRate: 32000,
+          bitRate: 64000,
         },
         ios: {
           extension: '.m4a',
@@ -146,14 +146,14 @@ export default function VoiceButton({ onRecordingComplete, isProcessing }: Voice
           audioQuality: Audio.IOSAudioQuality.HIGH,
           sampleRate: 16000,
           numberOfChannels: 1,
-          bitRate: 32000,
+          bitRate: 64000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
           linearPCMIsFloat: false,
         },
         web: {
           mimeType: 'audio/webm',
-          bitsPerSecond: 32000,
+          bitsPerSecond: 64000,
         },
       });
       await recording.startAsync();
