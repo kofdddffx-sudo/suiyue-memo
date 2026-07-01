@@ -202,12 +202,16 @@ export default function HomeScreen() {
       formData.append('audio', file as any);
 
       console.log('[Home] 正在上传音频到 ASR 服务...', `${API_BASE}/api/v1/speech-to-text`);
+      console.log('[Home] 文件信息:', { uri: audioUri, name: 'voice.m4a', type: 'audio/mp4' });
+      
       const asrResponse = await fetch(`${API_BASE}/api/v1/speech-to-text`, {
         method: 'POST',
         body: formData,
+        // 注意：不要手动设置 Content-Type，让 React Native 自动处理 boundary
       });
 
       console.log('[Home] ASR 响应状态:', asrResponse.status);
+      console.log('[Home] ASR 响应头:', JSON.stringify(Object.fromEntries(asrResponse.headers.entries())));
 
       let text = '';
       if (asrResponse.ok) {
@@ -215,8 +219,9 @@ export default function HomeScreen() {
         text = asrData.text || '';
         console.log('[Home] ASR 识别结果:', text);
       } else {
-        const errorData = await asrResponse.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[Home] ASR 请求失败:', asrResponse.status, errorData);
+        const errorText = await asrResponse.text();
+        console.error('[Home] ASR 请求失败:', asrResponse.status, errorText);
+        throw new Error(`ASR 请求失败: ${asrResponse.status} - ${errorText}`);
       }
 
       // ── 2. 如果 ASR 成功，用 AI 解析文本 ──
